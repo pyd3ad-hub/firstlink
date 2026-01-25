@@ -9,6 +9,7 @@ local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local AvatarEditor = game:GetService("AvatarEditorService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Player reference
 local plr = Players.LocalPlayer
@@ -79,7 +80,7 @@ local keys = {
 	{Name = "LMB", InputType = Enum.UserInputType.MouseButton1, Position = UDim2.new(0.035, -1, 0.64, 1), Size = UDim2.new(0, 55, 0, 18)},
 	{Name = "RMB", InputType = Enum.UserInputType.MouseButton2, Position = UDim2.new(0.53, -1, 0.64, 1), Size = UDim2.new(0, 55, 0, 18)},
 	{Name = "Spacebar", KeyCode = Enum.KeyCode.Space, Position = UDim2.new(0.05, -1, 0.81, 2), Size = UDim2.new(0, 110, 0, 18)},
-	{Name = "R", KeyCode = Enum.KeyCode.R, Position = UDim2.new(0.688, 0, 0.04, -2), IsActionButton = true}
+	{Name = "F", KeyCode = Enum.KeyCode.F, Position = UDim2.new(0.688, 0, 0.04, -2), IsActionButton = true}
 }
 
 -- Key Buttons
@@ -115,15 +116,7 @@ for _, keyData in pairs(keys) do
 	
 	-- Add click functionality for action buttons
 	if keyData.IsActionButton then
-		keyButton.MouseButton1Click:Connect(function()
-			if keyData.Name == "R" then
-				-- Reset character on the spot
-				local character = plr.Character
-				if character and character:FindFirstChild("Humanoid") then
-					character.Humanoid.Health = 0
-				end
-			end
-		end)
+		-- F button will be handled separately with fling functionality
 	end
 end
 
@@ -196,26 +189,22 @@ local keyPressTimes = {}
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	for _, keyData in pairs(keys) do
-		if (keyData.KeyCode and input.KeyCode == keyData.KeyCode) or 
-		   (keyData.InputType and input.UserInputType == keyData.InputType) then
-			local button = buttons[keyData.Name]
-			if button then
-				keyPressTimes[keyData.Name] = tick()
-				-- Immediately change text to grey
-				TweenService:Create(button, TweenInfo.new(0.1), {TextColor3 = Color3.fromRGB(128, 128, 128)}):Play()
-				task.spawn(function()
-					task.wait(longPressThreshold)
-					if keyPressTimes[keyData.Name] then
-						TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
-					end
-				end)
-				
-				-- Handle R key action (reset character)
-				if keyData.Name == "R" and input.KeyCode == Enum.KeyCode.R then
-					local character = plr.Character
-					if character and character:FindFirstChild("Humanoid") then
-						character.Humanoid.Health = 0
-					end
+		-- Skip F button as it has its own toggle logic
+		if keyData.Name ~= "F" then
+			if (keyData.KeyCode and input.KeyCode == keyData.KeyCode) or 
+			   (keyData.InputType and input.UserInputType == keyData.InputType) then
+				local button = buttons[keyData.Name]
+				if button then
+					keyPressTimes[keyData.Name] = tick()
+					-- Immediately change text to grey
+					TweenService:Create(button, TweenInfo.new(0.1), {TextColor3 = Color3.fromRGB(128, 128, 128)}):Play()
+					task.spawn(function()
+						task.wait(longPressThreshold)
+						if keyPressTimes[keyData.Name] then
+							TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
+						end
+					end)
+					
 				end
 			end
 		end
@@ -225,18 +214,21 @@ end)
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	for _, keyData in pairs(keys) do
-		if (keyData.KeyCode and input.KeyCode == keyData.KeyCode) or 
-		   (keyData.InputType and input.UserInputType == keyData.InputType) then
-			local button = buttons[keyData.Name]
-			if button and keyPressTimes[keyData.Name] then
-				local pressDuration = tick() - keyPressTimes[keyData.Name]
-				keyPressTimes[keyData.Name] = nil
-				if pressDuration < longPressThreshold then
-					TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(255, 255, 255), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-					task.wait(0.1)
-					TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(50, 50, 50), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-				else
-					TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(50, 50, 50), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+		-- Skip F button as it has its own toggle logic
+		if keyData.Name ~= "F" then
+			if (keyData.KeyCode and input.KeyCode == keyData.KeyCode) or 
+			   (keyData.InputType and input.UserInputType == keyData.InputType) then
+				local button = buttons[keyData.Name]
+				if button and keyPressTimes[keyData.Name] then
+					local pressDuration = tick() - keyPressTimes[keyData.Name]
+					keyPressTimes[keyData.Name] = nil
+					if pressDuration < longPressThreshold then
+						TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(255, 255, 255), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+						task.wait(0.1)
+						TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(50, 50, 50), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+					else
+						TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(50, 50, 50), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+					end
 				end
 			end
 		end
@@ -273,6 +265,68 @@ UserInputService.InputChanged:Connect(function(input)
 		Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 	end
 end)
+
+-- Fling functionality
+local hiddenfling = true  -- On by default
+
+-- Initialize detection object
+if not ReplicatedStorage:FindFirstChild("juisdfj0i32i0eidsuf0iok") then
+	local detection = Instance.new("Decal")
+	detection.Name = "juisdfj0i32i0eidsuf0iok"
+	detection.Parent = ReplicatedStorage
+end
+
+-- Fling function
+local function fling()
+	local hrp, c, vel, movel = nil, nil, nil, 0.1
+	local lp = Players.LocalPlayer
+
+	while true do
+		RunService.Heartbeat:Wait()
+		if hiddenfling then
+			while hiddenfling and not (c and c.Parent and hrp and hrp.Parent) do
+				RunService.Heartbeat:Wait()
+				c = lp.Character
+				hrp = c and c:FindFirstChild("HumanoidRootPart")
+			end
+
+			if hiddenfling then
+				vel = hrp.Velocity
+				hrp.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+				RunService.RenderStepped:Wait()
+				if c and c.Parent and hrp and hrp.Parent then
+					hrp.Velocity = vel
+				end
+				RunService.Stepped:Wait()
+				if c and c.Parent and hrp and hrp.Parent then
+					hrp.Velocity = vel + Vector3.new(0, movel, 0)
+					movel = movel * -1
+				end
+			end
+		end
+	end
+end
+
+-- Start fling function
+task.spawn(fling)
+
+-- F button toggle functionality
+local fButton = buttons["F"]
+if fButton then
+	-- Set initial state (on by default - grey)
+	fButton.TextColor3 = Color3.fromRGB(128, 128, 128)  -- Grey when on
+	
+	fButton.MouseButton1Click:Connect(function()
+		hiddenfling = not hiddenfling
+		if hiddenfling then
+			-- On state - grey
+			TweenService:Create(fButton, TweenInfo.new(0.1), {TextColor3 = Color3.fromRGB(128, 128, 128)}):Play()
+		else
+			-- Off state - white
+			TweenService:Create(fButton, TweenInfo.new(0.1), {TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+		end
+	end)
+end
 
 -- Toggle visibility with PgUp key
 local isVisible = true
