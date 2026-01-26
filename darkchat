@@ -1,0 +1,22 @@
+local TextChatService = game:GetService("TextChatService")
+
+local bubbleConfig = TextChatService:FindFirstChild("BubbleChatConfiguration")
+if not bubbleConfig then
+	bubbleConfig = Instance.new("BubbleChatConfiguration")
+	bubbleConfig.Parent = TextChatService
+end
+
+-- Bubble chat
+bubbleConfig.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+bubbleConfig.BackgroundTransparency = 0.45 -- adjust it if u want
+
+-- White text (change it also if u want)
+bubbleConfig.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Text
+bubbleConfig.TextStrokeTransparency = 0.7
+bubbleConfig.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+-- Style (bubble chat text style/size)
+bubbleConfig.Font = Enum.Font.Gotham
+bubbleConfig.TextSize = 14
