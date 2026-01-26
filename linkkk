@@ -35,8 +35,73 @@ local function saveConfig()
 	end
 end
 
--- Clear existing UI if it exists
+-- Check if UI is already running (reload detection)
 local existingGui = CoreGui:FindFirstChild("KeystrokeUI")
+local existingDetection = ReplicatedStorage:FindFirstChild("juisdfj0i32i0eidsuf0iok")
+
+if existingGui or existingDetection then
+	-- UI is already running - show warning and prevent re-execution
+	warn("⚠️ Keystroke UI is already running! Please do not reload the script.")
+	
+	-- Show a notification if possible
+	if plr and plr:FindFirstChild("PlayerGui") then
+		local notificationGui = Instance.new("ScreenGui")
+		notificationGui.Name = "KeystrokeUI_Warning"
+		notificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		notificationGui.Parent = plr.PlayerGui
+		
+		local notificationFrame = Instance.new("Frame")
+		notificationFrame.Size = UDim2.new(0, 400, 0, 100)
+		notificationFrame.Position = UDim2.new(0.5, -200, 0.5, -50)
+		notificationFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+		notificationFrame.BackgroundTransparency = 0.2
+		notificationFrame.BorderSizePixel = 0
+		notificationFrame.Parent = notificationGui
+		
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = notificationFrame
+		
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(255, 100, 100)
+		stroke.Thickness = 2
+		stroke.Parent = notificationFrame
+		
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, -20, 0, 30)
+		title.Position = UDim2.new(0, 10, 0, 10)
+		title.BackgroundTransparency = 1
+		title.Text = "⚠️ UI Already Running"
+		title.TextColor3 = Color3.fromRGB(255, 100, 100)
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 16
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.Parent = notificationFrame
+		
+		local message = Instance.new("TextLabel")
+		message.Size = UDim2.new(1, -20, 0, 50)
+		message.Position = UDim2.new(0, 10, 0, 40)
+		message.BackgroundTransparency = 1
+		message.Text = "Keystroke UI is already active. Do not reload the script."
+		message.TextColor3 = Color3.fromRGB(255, 255, 255)
+		message.Font = Enum.Font.Gotham
+		message.TextSize = 12
+		message.TextXAlignment = Enum.TextXAlignment.Left
+		message.TextWrapped = true
+		message.Parent = notificationFrame
+		
+		-- Auto-remove after 5 seconds
+		task.spawn(function()
+			task.wait(5)
+			notificationGui:Destroy()
+		end)
+	end
+	
+	-- Stop execution here
+	return
+end
+
+-- Clear any orphaned UI (safety check)
 if existingGui then
 	existingGui:Destroy()
 end
@@ -269,12 +334,10 @@ end)
 -- Fling functionality
 local hiddenfling = true  -- On by default
 
--- Initialize detection object
-if not ReplicatedStorage:FindFirstChild("juisdfj0i32i0eidsuf0iok") then
-	local detection = Instance.new("Decal")
-	detection.Name = "juisdfj0i32i0eidsuf0iok"
-	detection.Parent = ReplicatedStorage
-end
+-- Initialize detection object (marker to detect if script is running)
+local detection = Instance.new("Decal")
+detection.Name = "juisdfj0i32i0eidsuf0iok"
+detection.Parent = ReplicatedStorage
 
 -- Fling function
 local function fling()
