@@ -35,24 +35,61 @@ local function saveConfig()
 	end
 end
 
+-- Script identification
+local SCRIPT_NAME = "Keystroke UI"
+local UI_NAME = "KeystrokeUI"
+local DETECTION_NAME = "keystroke_ui_detection"
+
+-- Global UI stacking system
+local function getOrCreateUIStack()
+	local stackFolder = ReplicatedStorage:FindFirstChild("UIStackFolder")
+	if not stackFolder then
+		stackFolder = Instance.new("Folder")
+		stackFolder.Name = "UIStackFolder"
+		stackFolder.Parent = ReplicatedStorage
+	end
+	return stackFolder
+end
+
 -- Check if UI is already running (reload detection)
-local existingGui = CoreGui:FindFirstChild("KeystrokeUI")
-local existingDetection = ReplicatedStorage:FindFirstChild("juisdfj0i32i0eidsuf0iok")
+local existingGui = CoreGui:FindFirstChild(UI_NAME)
+local existingDetection = getOrCreateUIStack():FindFirstChild(DETECTION_NAME)
+local uiStack = getOrCreateUIStack()
 
 if existingGui or existingDetection then
-	-- UI is already running - show warning and prevent re-execution
-	warn("⚠️ Keystroke UI is already running! Please do not reload the script.")
+	-- UI is already running - move existing UIs down and show warning
+	warn("⚠️ " .. SCRIPT_NAME .. " is already running! Creating new instance and moving existing ones down.")
 	
-	-- Show a notification if possible
+	-- Count existing UIs to determine offset
+	local existingCount = 0
+	for _, child in pairs(uiStack:GetChildren()) do
+		if child:IsA("StringValue") then
+			existingCount = existingCount + 1
+		end
+	end
+	
+	-- Move all existing UIs down
+	local offsetY = 140 * existingCount  -- 140px spacing between UIs
+	for _, gui in pairs(CoreGui:GetChildren()) do
+		if gui:IsA("ScreenGui") and (gui.Name == UI_NAME or gui.Name:find("KeystrokeUI")) then
+			local frame = gui:FindFirstChild("Frame")
+			if frame then
+				local currentPos = frame.Position
+				frame.Position = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, currentPos.Y.Scale, currentPos.Y.Offset + offsetY)
+			end
+		end
+	end
+	
+	-- Show warning notification
 	if plr and plr:FindFirstChild("PlayerGui") then
 		local notificationGui = Instance.new("ScreenGui")
-		notificationGui.Name = "KeystrokeUI_Warning"
+		notificationGui.Name = UI_NAME .. "_Warning_" .. tostring(existingCount + 1)
 		notificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		notificationGui.Parent = plr.PlayerGui
 		
 		local notificationFrame = Instance.new("Frame")
-		notificationFrame.Size = UDim2.new(0, 400, 0, 100)
-		notificationFrame.Position = UDim2.new(0.5, -200, 0.5, -50)
+		notificationFrame.Size = UDim2.new(0, 400, 0, 120)
+		notificationFrame.Position = UDim2.new(0.5, -200, 0.1 + (existingCount * 0.15), 0)
 		notificationFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 		notificationFrame.BackgroundTransparency = 0.2
 		notificationFrame.BorderSizePixel = 0
@@ -79,10 +116,10 @@ if existingGui or existingDetection then
 		title.Parent = notificationFrame
 		
 		local message = Instance.new("TextLabel")
-		message.Size = UDim2.new(1, -20, 0, 50)
+		message.Size = UDim2.new(1, -20, 0, 70)
 		message.Position = UDim2.new(0, 10, 0, 40)
 		message.BackgroundTransparency = 1
-		message.Text = "Keystroke UI is already active. Do not reload the script."
+		message.Text = SCRIPT_NAME .. " is already active.\nExisting UI moved down.\nThis instance will be created below."
 		message.TextColor3 = Color3.fromRGB(255, 255, 255)
 		message.Font = Enum.Font.Gotham
 		message.TextSize = 12
@@ -97,19 +134,35 @@ if existingGui or existingDetection then
 		end)
 	end
 	
-	-- Stop execution here
-	return
+	-- Create new detection marker for this instance
+	local newDetection = Instance.new("StringValue")
+	newDetection.Name = DETECTION_NAME .. "_" .. tostring(existingCount + 1)
+	newDetection.Value = SCRIPT_NAME
+	newDetection.Parent = uiStack
 end
 
--- Clear any orphaned UI (safety check)
-if existingGui then
-	existingGui:Destroy()
+-- Create detection marker for this instance
+local detection = Instance.new("StringValue")
+detection.Name = DETECTION_NAME
+detection.Value = SCRIPT_NAME
+detection.Parent = uiStack
+
+-- Calculate position offset if there are existing UIs (before creating new UI)
+local existingCountForOffset = 0
+for _, child in pairs(uiStack:GetChildren()) do
+	if child:IsA("StringValue") and child.Name ~= DETECTION_NAME then
+		existingCountForOffset = existingCountForOffset + 1
+	end
 end
+local positionOffset = existingCountForOffset * 140  -- 140px spacing
 
 -- UI Elements
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "KeystrokeUI"
+local instanceNumber = (existingGui or existingDetection) and (existingCountForOffset + 1) or 1
+ScreenGui.Name = UI_NAME .. (instanceNumber > 1 and "_" .. tostring(instanceNumber) or "")
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Enabled = true  -- Always visible, cannot be hidden
+ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = CoreGui
 
 local Frame = Instance.new("Frame")
@@ -117,12 +170,12 @@ Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 Frame.BackgroundTransparency = 0.4
 Frame.BorderSizePixel = 0
--- Load saved position if available, otherwise use default
+-- Load saved position if available, otherwise use default (centered with offset)
 if savedPositions["KeystrokeUI_Frame"] then
 	local posData = savedPositions["KeystrokeUI_Frame"]
-	Frame.Position = UDim2.new(posData.Xs, posData.Xo, posData.Ys, posData.Yo)
+	Frame.Position = UDim2.new(posData.Xs, posData.Xo, posData.Ys, posData.Yo + positionOffset)
 else
-	Frame.Position = UDim2.new(0.77, 0, 0.15, 0)
+	Frame.Position = UDim2.new(0.5, -60, 0.5, -60 + positionOffset)  -- Centered with offset
 end
 Frame.Size = UDim2.new(0, 120, 0, 120)
 Frame.Active = true  -- for dragging
@@ -334,10 +387,7 @@ end)
 -- Fling functionality
 local hiddenfling = true  -- On by default
 
--- Initialize detection object (marker to detect if script is running)
-local detection = Instance.new("Decal")
-detection.Name = "juisdfj0i32i0eidsuf0iok"
-detection.Parent = ReplicatedStorage
+-- Detection marker already created above
 
 -- Fling function
 local function fling()
@@ -391,11 +441,12 @@ if fButton then
 	end)
 end
 
--- Toggle visibility with PgUp key
-local isVisible = true
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if input.KeyCode == Enum.KeyCode.PageUp then
-		isVisible = not isVisible
-		ScreenGui.Enabled = isVisible
+-- Ensure keystrokes UI is always visible (PageUp toggle removed)
+-- Monitor to keep ScreenGui always enabled
+RunService.Heartbeat:Connect(function()
+	if ScreenGui and ScreenGui.Parent == CoreGui then
+		if not ScreenGui.Enabled then
+			ScreenGui.Enabled = true  -- Force enable if disabled
+		end
 	end
 end)
