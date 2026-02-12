@@ -265,6 +265,27 @@ rigButtonUIStroke.Thickness = 1.5
 rigButtonUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 rigButtonUIStroke.Color = Color3.fromRGB(0, 0, 0)
 
+-- Detect current rig type on startup
+task.spawn(function()
+	local char = Players.LocalPlayer.Character
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			currentRigMode = humanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
+			rigToggleButton.Text = currentRigMode
+		end
+	else
+		-- Wait for character to load
+		Players.LocalPlayer.CharacterAdded:Wait()
+		task.wait(0.5)
+		local humanoid = Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			currentRigMode = humanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
+			rigToggleButton.Text = currentRigMode
+		end
+	end
+end)
+
 -- Toggle functionality
 rigToggleButton.MouseButton1Click:Connect(function()
 	local newRigType = currentRigMode == "R6" and "R15" or "R6"
@@ -276,28 +297,44 @@ rigToggleButton.MouseButton1Click:Connect(function()
 		local humanoid = char:FindFirstChildOfClass("Humanoid")
 		if not humanoid then return end
 
+		-- Get current description
 		local desc = humanoid.HumanoidDescription:Clone()
 		
-		AvatarEditor:PromptSaveAvatar(desc, Enum.HumanoidRigType[newRigType])
-		local result = AvatarEditor.PromptSaveAvatarCompleted:Wait()
+		-- Update button text immediately for feedback
+		currentRigMode = newRigType
+		rigToggleButton.Text = newRigType
 		
-		if result == Enum.AvatarPromptResult.Success then
-			currentRigMode = newRigType
-			rigToggleButton.Text = newRigType
-			
-			humanoid.Health = 0
-			humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-			
-			Players.LocalPlayer.CharacterAdded:Wait()
-			task.wait(1)
-			
-			local newHumanoid = Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-			if newHumanoid then
-				newHumanoid:ApplyDescription(desc)
-				newHumanoid:BuildRigFromDescription(desc, Enum.HumanoidRigType[newRigType])
-			end
+		-- Kill character to respawn with new rig
+		humanoid.Health = 0
+		humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+		
+		-- Wait for character to respawn
+		local newChar = Players.LocalPlayer.CharacterAdded:Wait()
+		task.wait(0.5) -- Wait for character to fully load
+		
+		-- Apply description and build rig with new type
+		local newHumanoid = newChar:FindFirstChildOfClass("Humanoid")
+		if newHumanoid then
+			-- Apply the description first
+			newHumanoid:ApplyDescription(desc)
+			-- Build the rig with the new rig type directly
+			newHumanoid:BuildRigFromDescription(desc, Enum.HumanoidRigType[newRigType])
+			-- Update button text to reflect actual rig type
+			task.wait(0.1)
+			currentRigMode = newHumanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
+			rigToggleButton.Text = currentRigMode
 		end
 	end)
+end)
+
+-- Update rig type display whenever character respawns (for natural respawns)
+Players.LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	local humanoid = Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		currentRigMode = humanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
+		rigToggleButton.Text = currentRigMode
+	end
 end)
 
 -- Long Press / Long Click Detection
