@@ -57,39 +57,19 @@ local existingDetection = getOrCreateUIStack():FindFirstChild(DETECTION_NAME)
 local uiStack = getOrCreateUIStack()
 
 if existingGui or existingDetection then
-	-- UI is already running - move existing UIs down and show warning
-	warn("⚠️ " .. SCRIPT_NAME .. " is already running! Creating new instance and moving existing ones down.")
+	-- UI is already running - prevent duplicate execution
+	warn("⚠️ " .. SCRIPT_NAME .. " is already running! Preventing duplicate execution.")
 	
-	-- Count existing UIs to determine offset
-	local existingCount = 0
-	for _, child in pairs(uiStack:GetChildren()) do
-		if child:IsA("StringValue") then
-			existingCount = existingCount + 1
-		end
-	end
-	
-	-- Move all existing UIs down
-	local offsetY = 140 * existingCount  -- 140px spacing between UIs
-	for _, gui in pairs(CoreGui:GetChildren()) do
-		if gui:IsA("ScreenGui") and (gui.Name == UI_NAME or gui.Name:find("KeystrokeUI")) then
-			local frame = gui:FindFirstChild("Frame")
-			if frame then
-				local currentPos = frame.Position
-				frame.Position = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, currentPos.Y.Scale, currentPos.Y.Offset + offsetY)
-			end
-		end
-	end
-	
-	-- Show warning notification
+	-- Show notification that script is already running
 	if plr and plr:FindFirstChild("PlayerGui") then
 		local notificationGui = Instance.new("ScreenGui")
-		notificationGui.Name = UI_NAME .. "_Warning_" .. tostring(existingCount + 1)
+		notificationGui.Name = UI_NAME .. "_AlreadyRunning"
 		notificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		notificationGui.Parent = plr.PlayerGui
 		
 		local notificationFrame = Instance.new("Frame")
-		notificationFrame.Size = UDim2.new(0, 400, 0, 120)
-		notificationFrame.Position = UDim2.new(0.5, -200, 0.1 + (existingCount * 0.15), 0)
+		notificationFrame.Size = UDim2.new(0, 400, 0, 100)
+		notificationFrame.Position = UDim2.new(0.5, -200, 0.1, 0)
 		notificationFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 		notificationFrame.BackgroundTransparency = 0.2
 		notificationFrame.BorderSizePixel = 0
@@ -100,7 +80,7 @@ if existingGui or existingDetection then
 		corner.Parent = notificationFrame
 		
 		local stroke = Instance.new("UIStroke")
-		stroke.Color = Color3.fromRGB(255, 100, 100)
+		stroke.Color = Color3.fromRGB(255, 150, 50)
 		stroke.Thickness = 2
 		stroke.Parent = notificationFrame
 		
@@ -108,18 +88,18 @@ if existingGui or existingDetection then
 		title.Size = UDim2.new(1, -20, 0, 30)
 		title.Position = UDim2.new(0, 10, 0, 10)
 		title.BackgroundTransparency = 1
-		title.Text = "⚠️ UI Already Running"
-		title.TextColor3 = Color3.fromRGB(255, 100, 100)
+		title.Text = "⚠️ Script Already Running"
+		title.TextColor3 = Color3.fromRGB(255, 150, 50)
 		title.Font = Enum.Font.GothamBold
 		title.TextSize = 16
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.Parent = notificationFrame
 		
 		local message = Instance.new("TextLabel")
-		message.Size = UDim2.new(1, -20, 0, 70)
+		message.Size = UDim2.new(1, -20, 0, 50)
 		message.Position = UDim2.new(0, 10, 0, 40)
 		message.BackgroundTransparency = 1
-		message.Text = SCRIPT_NAME .. " is already active.\nExisting UI moved down.\nThis instance will be created below."
+		message.Text = SCRIPT_NAME .. " is already active.\nThis execution was prevented to avoid duplicates."
 		message.TextColor3 = Color3.fromRGB(255, 255, 255)
 		message.Font = Enum.Font.Gotham
 		message.TextSize = 12
@@ -127,34 +107,25 @@ if existingGui or existingDetection then
 		message.TextWrapped = true
 		message.Parent = notificationFrame
 		
-		-- Auto-remove after 5 seconds
+		-- Auto-remove after 4 seconds
 		task.spawn(function()
-			task.wait(5)
+			task.wait(4)
 			notificationGui:Destroy()
 		end)
 	end
 	
-	-- Create new detection marker for this instance
-	local newDetection = Instance.new("StringValue")
-	newDetection.Name = DETECTION_NAME .. "_" .. tostring(existingCount + 1)
-	newDetection.Value = SCRIPT_NAME
-	newDetection.Parent = uiStack
+	-- Exit early - prevent duplicate execution
+	return
 end
 
--- Create detection marker for this instance
+-- Create detection marker for this instance (only if not already running)
 local detection = Instance.new("StringValue")
 detection.Name = DETECTION_NAME
 detection.Value = SCRIPT_NAME
 detection.Parent = uiStack
 
--- Calculate position offset if there are existing UIs (before creating new UI)
-local existingCountForOffset = 0
-for _, child in pairs(uiStack:GetChildren()) do
-	if child:IsA("StringValue") and child.Name ~= DETECTION_NAME then
-		existingCountForOffset = existingCountForOffset + 1
-	end
-end
-local positionOffset = existingCountForOffset * 140  -- 140px spacing
+-- No position offset needed since we're preventing duplicates
+local positionOffset = 0
 
 -- UI Elements
 local ScreenGui = Instance.new("ScreenGui")
@@ -239,6 +210,8 @@ for _, keyData in pairs(keys) do
 end
 
 -- R6/R15 Toggle Button (positioned to the left of W)
+-- NOTE: Rig type conversion is heavily restricted by Roblox
+-- This may not work in many games due to server-side restrictions
 local currentRigMode = "R6"
 local rigToggleButton = Instance.new("TextButton")
 local rigButtonUICorner = Instance.new("UICorner")
@@ -287,6 +260,9 @@ task.spawn(function()
 end)
 
 -- Toggle functionality
+-- WARNING: Rig type conversion is heavily restricted by Roblox
+-- The server controls rig type based on your avatar settings
+-- This may not work in most games
 rigToggleButton.MouseButton1Click:Connect(function()
 	local newRigType = currentRigMode == "R6" and "R15" or "R6"
 	
@@ -297,6 +273,14 @@ rigToggleButton.MouseButton1Click:Connect(function()
 		local humanoid = char:FindFirstChildOfClass("Humanoid")
 		if not humanoid then return end
 
+		local currentRigType = humanoid.RigType
+		local targetRigType = Enum.HumanoidRigType[newRigType]
+		
+		-- If already the target rig type, do nothing
+		if currentRigType == targetRigType then
+			return
+		end
+		
 		-- Get current description
 		local desc = humanoid.HumanoidDescription:Clone()
 		
@@ -304,25 +288,73 @@ rigToggleButton.MouseButton1Click:Connect(function()
 		currentRigMode = newRigType
 		rigToggleButton.Text = newRigType
 		
-		-- Kill character to respawn with new rig
-		humanoid.Health = 0
-		humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+
+		local promptSuccess = false
+		local promptResult = nil
 		
-		-- Wait for character to respawn
-		local newChar = Players.LocalPlayer.CharacterAdded:Wait()
-		task.wait(0.5) -- Wait for character to fully load
+		local promptConnection
+		promptConnection = AvatarEditor.PromptSaveAvatarCompleted:Connect(function(result)
+			promptResult = result
+			promptSuccess = true
+			if promptConnection then
+				promptConnection:Disconnect()
+			end
+		end)
 		
-		-- Apply description and build rig with new type
-		local newHumanoid = newChar:FindFirstChildOfClass("Humanoid")
-		if newHumanoid then
-			-- Apply the description first
-			newHumanoid:ApplyDescription(desc)
-			-- Build the rig with the new rig type directly
-			newHumanoid:BuildRigFromDescription(desc, Enum.HumanoidRigType[newRigType])
-			-- Update button text to reflect actual rig type
-			task.wait(0.1)
-			currentRigMode = newHumanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
-			rigToggleButton.Text = currentRigMode
+		pcall(function()
+			AvatarEditor:PromptSaveAvatar(desc, targetRigType)
+		end)
+		
+		task.wait(0.1)
+		
+		if promptSuccess or promptResult == Enum.AvatarPromptResult.Success then
+			humanoid.Health = 0
+			humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+			
+			local newChar = Players.LocalPlayer.CharacterAdded:Wait()
+			local newHrp = newChar:WaitForChild("HumanoidRootPart", 10)
+			local newHumanoid = newChar:WaitForChild("Humanoid", 10)
+			
+			if newHumanoid then
+				task.wait(0.5)
+				local actualRigType = newHumanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
+				currentRigMode = actualRigType
+				rigToggleButton.Text = actualRigType
+			end
+		else
+			-- If prompt didn't work, try direct method (usually won't work)
+			humanoid.Health = 0
+			humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+			
+			local newChar = Players.LocalPlayer.CharacterAdded:Wait()
+			local newHrp = newChar:WaitForChild("HumanoidRootPart", 10)
+			local newHumanoid = newChar:WaitForChild("Humanoid", 10)
+			
+			if newHumanoid then
+				task.wait(1)
+				
+				-- Try building with target rig type (usually won't work due to server restrictions)
+				pcall(function()
+					newHumanoid:BuildRigFromDescription(desc, targetRigType)
+					task.wait(0.5)
+					
+					local actualRigType = newHumanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
+					currentRigMode = actualRigType
+					rigToggleButton.Text = actualRigType
+				end)
+			end
+			
+			-- Revert button if it didn't work
+			if newHumanoid and newHumanoid.RigType ~= targetRigType then
+				local actualRigType = newHumanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
+				currentRigMode = actualRigType
+				rigToggleButton.Text = actualRigType
+			end
+		end
+		
+		-- Clean up connection
+		if promptConnection then
+			promptConnection:Disconnect()
 		end
 	end)
 end)
