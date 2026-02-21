@@ -217,8 +217,8 @@ local emergencyButtonUIStroke = Instance.new("UIStroke")
 
 emergencyButton.Name = "Emergency"
 emergencyButton.Parent = Frame
-emergencyButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)  -- Red color for emergency
-emergencyButton.BackgroundTransparency = 0.3
+emergencyButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)  -- Same as other buttons
+emergencyButton.BackgroundTransparency = 0.5
 emergencyButton.BorderSizePixel = 0
 emergencyButton.Position = UDim2.new(0.035, 0, 0.04, -2)
 emergencyButton.Size = UDim2.new(0, 32, 0, 32)
@@ -234,11 +234,11 @@ emergencyButtonUICorner.Parent = emergencyButton
 emergencyButtonUIStroke.Parent = emergencyButton
 emergencyButtonUIStroke.Thickness = 1.5
 emergencyButtonUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-emergencyButtonUIStroke.Color = Color3.fromRGB(150, 0, 0)  -- Dark red stroke
+emergencyButtonUIStroke.Color = Color3.fromRGB(0, 0, 0)  -- Black stroke like other buttons
 
 -- Emergency toggle functionality - toggles both invis and fly at the same time
 emergencyButton.MouseButton1Click:Connect(function()
-	-- Get functions (they should be global from z.lua)
+	-- Get functions and variables (they should be global from z.lua)
 	local startInvis = startInvisibility or _G.startInvisibility
 	local stopInvis = stopInvisibility or _G.stopInvisibility
 	local enableFlyFunc = enableFly or _G.enableFly
@@ -249,10 +249,21 @@ emergencyButton.MouseButton1Click:Connect(function()
 		return
 	end
 	
-	-- Get current states
+	-- Get current states - access from global scope
 	local playerUtils = PlayerUtilities or _G.PlayerUtilities
-	local invisState = (playerUtils and playerUtils.Invisibility) or false
-	local flyState = (flyEnabled or _G.flyEnabled) or false
+	local invisState = false
+	local flyState = false
+	
+	if playerUtils then
+		invisState = playerUtils.Invisibility or false
+	end
+	
+	-- Try multiple ways to get flyEnabled
+	if _G.flyEnabled ~= nil then
+		flyState = _G.flyEnabled
+	elseif flyEnabled ~= nil then
+		flyState = flyEnabled
+	end
 	
 	-- Determine target state: if both are on, turn both off; otherwise turn both on
 	local targetState = not (invisState and flyState)
@@ -261,22 +272,68 @@ emergencyButton.MouseButton1Click:Connect(function()
 	if playerUtils then
 		playerUtils.Invisibility = targetState
 	end
-	if targetState then
-		pcall(function() startInvis() end)
-	else
-		pcall(function() stopInvis() end)
-	end
 	
-	-- Toggle fly
-	if flyEnabled ~= nil then
+	-- Update flyEnabled in global scope
+	if _G.flyEnabled ~= nil then
+		_G.flyEnabled = targetState
+	elseif flyEnabled ~= nil then
 		flyEnabled = targetState
-	elseif _G.flyEnabled ~= nil then
+		-- Also set in _G for cross-script access
 		_G.flyEnabled = targetState
 	end
+	
+	-- Call the functions
 	if targetState then
-		pcall(function() enableFlyFunc() end)
+		pcall(function() 
+			if startInvis then startInvis() end
+			if enableFlyFunc then enableFlyFunc() end
+		end)
 	else
-		pcall(function() disableFlyFunc() end)
+		pcall(function() 
+			if stopInvis then stopInvis() end
+			if disableFlyFunc then disableFlyFunc() end
+		end)
+	end
+	
+	-- Update UI state if toggleElements exists (for updating the visual toggles)
+	if _G.toggleElements and type(_G.toggleElements) == "table" then
+		-- Update invisibility toggle (index 5)
+		if _G.playerUtilitiesData and _G.playerUtilitiesData[5] then
+			_G.playerUtilitiesData[5].Enabled = targetState
+			local invisElement = _G.toggleElements[5]
+			if invisElement and invisElement.switchContainer and invisElement.toggleSlider and invisElement.statusIndicator then
+				local targetPosition = targetState and UDim2.new(1, -17, 0, 1) or UDim2.new(0, 1, 0, 1)
+				local targetBgColor = Color3.fromRGB(25, 25, 25)
+				local targetStrokeColor = targetState and Color3.fromRGB(15, 15, 15) or Color3.fromRGB(25, 25, 25)
+				local targetSymbol = targetState and "◉" or "○"
+				
+				TweenService:Create(invisElement.toggleSlider, TweenInfo.new(0.2), {Position = targetPosition}):Play()
+				TweenService:Create(invisElement.switchContainer, TweenInfo.new(0.2), {BackgroundColor3 = targetBgColor}):Play()
+				if invisElement.switchContainer.UIStroke then
+					TweenService:Create(invisElement.switchContainer.UIStroke, TweenInfo.new(0.2), {Color = targetStrokeColor}):Play()
+				end
+				invisElement.statusIndicator.Text = targetSymbol
+			end
+		end
+		
+		-- Update fly toggle (index 6)
+		if _G.playerUtilitiesData and _G.playerUtilitiesData[6] then
+			_G.playerUtilitiesData[6].Enabled = targetState
+			local flyElement = _G.toggleElements[6]
+			if flyElement and flyElement.switchContainer and flyElement.toggleSlider and flyElement.statusIndicator then
+				local targetPosition = targetState and UDim2.new(1, -17, 0, 1) or UDim2.new(0, 1, 0, 1)
+				local targetBgColor = Color3.fromRGB(25, 25, 25)
+				local targetStrokeColor = targetState and Color3.fromRGB(15, 15, 15) or Color3.fromRGB(25, 25, 25)
+				local targetSymbol = targetState and "◉" or "○"
+				
+				TweenService:Create(flyElement.toggleSlider, TweenInfo.new(0.2), {Position = targetPosition}):Play()
+				TweenService:Create(flyElement.switchContainer, TweenInfo.new(0.2), {BackgroundColor3 = targetBgColor}):Play()
+				if flyElement.switchContainer.UIStroke then
+					TweenService:Create(flyElement.switchContainer.UIStroke, TweenInfo.new(0.2), {Color = targetStrokeColor}):Play()
+				end
+				flyElement.statusIndicator.Text = targetSymbol
+			end
+		end
 	end
 	
 	-- Visual feedback - flash the button
