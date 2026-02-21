@@ -209,164 +209,85 @@ for _, keyData in pairs(keys) do
 	end
 end
 
--- R6/R15 Toggle Button (positioned to the left of W)
--- NOTE: Rig type conversion is heavily restricted by Roblox
--- This may not work in many games due to server-side restrictions
-local currentRigMode = "R6"
-local rigToggleButton = Instance.new("TextButton")
-local rigButtonUICorner = Instance.new("UICorner")
-local rigButtonUIStroke = Instance.new("UIStroke")
+-- Emergency Button (E) - Toggles both Invis and Fly simultaneously
+-- Positioned to the left of W (same position as old R6/R15 toggle)
+local emergencyButton = Instance.new("TextButton")
+local emergencyButtonUICorner = Instance.new("UICorner")
+local emergencyButtonUIStroke = Instance.new("UIStroke")
 
-rigToggleButton.Name = "RigToggle"
-rigToggleButton.Parent = Frame
-rigToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-rigToggleButton.BackgroundTransparency = 0.5
-rigToggleButton.BorderSizePixel = 0
-rigToggleButton.Position = UDim2.new(0.035, 0, 0.04, -2)
-rigToggleButton.Size = UDim2.new(0, 32, 0, 32)
-rigToggleButton.Font = Enum.Font.GothamBold
-rigToggleButton.Text = currentRigMode
-rigToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-rigToggleButton.TextSize = 10
-rigToggleButton.TextWrapped = true
-rigToggleButton.AutoButtonColor = false
+emergencyButton.Name = "Emergency"
+emergencyButton.Parent = Frame
+emergencyButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)  -- Red color for emergency
+emergencyButton.BackgroundTransparency = 0.3
+emergencyButton.BorderSizePixel = 0
+emergencyButton.Position = UDim2.new(0.035, 0, 0.04, -2)
+emergencyButton.Size = UDim2.new(0, 32, 0, 32)
+emergencyButton.Font = Enum.Font.GothamBold
+emergencyButton.Text = "E"
+emergencyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+emergencyButton.TextSize = 16
+emergencyButton.TextWrapped = true
+emergencyButton.AutoButtonColor = false
 
-rigButtonUICorner.Parent = rigToggleButton
+emergencyButtonUICorner.Parent = emergencyButton
 
-rigButtonUIStroke.Parent = rigToggleButton
-rigButtonUIStroke.Thickness = 1.5
-rigButtonUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-rigButtonUIStroke.Color = Color3.fromRGB(0, 0, 0)
+emergencyButtonUIStroke.Parent = emergencyButton
+emergencyButtonUIStroke.Thickness = 1.5
+emergencyButtonUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+emergencyButtonUIStroke.Color = Color3.fromRGB(150, 0, 0)  -- Dark red stroke
 
--- Detect current rig type on startup
-task.spawn(function()
-	local char = Players.LocalPlayer.Character
-	if char then
-		local humanoid = char:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			currentRigMode = humanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
-			rigToggleButton.Text = currentRigMode
-		end
-	else
-		-- Wait for character to load
-		Players.LocalPlayer.CharacterAdded:Wait()
-		task.wait(0.5)
-		local humanoid = Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			currentRigMode = humanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
-			rigToggleButton.Text = currentRigMode
-		end
-	end
-end)
-
--- Toggle functionality
--- WARNING: Rig type conversion is heavily restricted by Roblox
--- The server controls rig type based on your avatar settings
--- This may not work in most games
-rigToggleButton.MouseButton1Click:Connect(function()
-	local newRigType = currentRigMode == "R6" and "R15" or "R6"
+-- Emergency toggle functionality - toggles both invis and fly at the same time
+emergencyButton.MouseButton1Click:Connect(function()
+	-- Get functions (they should be global from z.lua)
+	local startInvis = startInvisibility or _G.startInvisibility
+	local stopInvis = stopInvisibility or _G.stopInvisibility
+	local enableFlyFunc = enableFly or _G.enableFly
+	local disableFlyFunc = disableFly or _G.disableFly
 	
-	task.spawn(function()
-		local char = Players.LocalPlayer.Character
-		if not char then return end
-		
-		local humanoid = char:FindFirstChildOfClass("Humanoid")
-		if not humanoid then return end
-
-		local currentRigType = humanoid.RigType
-		local targetRigType = Enum.HumanoidRigType[newRigType]
-		
-		-- If already the target rig type, do nothing
-		if currentRigType == targetRigType then
-			return
-		end
-		
-		-- Get current description
-		local desc = humanoid.HumanoidDescription:Clone()
-		
-		-- Update button text immediately for feedback
-		currentRigMode = newRigType
-		rigToggleButton.Text = newRigType
-		
-
-		local promptSuccess = false
-		local promptResult = nil
-		
-		local promptConnection
-		promptConnection = AvatarEditor.PromptSaveAvatarCompleted:Connect(function(result)
-			promptResult = result
-			promptSuccess = true
-			if promptConnection then
-				promptConnection:Disconnect()
-			end
-		end)
-		
-		pcall(function()
-			AvatarEditor:PromptSaveAvatar(desc, targetRigType)
-		end)
-		
-		task.wait(0.1)
-		
-		if promptSuccess or promptResult == Enum.AvatarPromptResult.Success then
-			humanoid.Health = 0
-			humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-			
-			local newChar = Players.LocalPlayer.CharacterAdded:Wait()
-			local newHrp = newChar:WaitForChild("HumanoidRootPart", 10)
-			local newHumanoid = newChar:WaitForChild("Humanoid", 10)
-			
-			if newHumanoid then
-				task.wait(0.5)
-				local actualRigType = newHumanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
-				currentRigMode = actualRigType
-				rigToggleButton.Text = actualRigType
-			end
-		else
-			-- If prompt didn't work, try direct method (usually won't work)
-			humanoid.Health = 0
-			humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-			
-			local newChar = Players.LocalPlayer.CharacterAdded:Wait()
-			local newHrp = newChar:WaitForChild("HumanoidRootPart", 10)
-			local newHumanoid = newChar:WaitForChild("Humanoid", 10)
-			
-			if newHumanoid then
-				task.wait(1)
-				
-				-- Try building with target rig type (usually won't work due to server restrictions)
-				pcall(function()
-					newHumanoid:BuildRigFromDescription(desc, targetRigType)
-					task.wait(0.5)
-					
-					local actualRigType = newHumanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
-					currentRigMode = actualRigType
-					rigToggleButton.Text = actualRigType
-				end)
-			end
-			
-			-- Revert button if it didn't work
-			if newHumanoid and newHumanoid.RigType ~= targetRigType then
-				local actualRigType = newHumanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
-				currentRigMode = actualRigType
-				rigToggleButton.Text = actualRigType
-			end
-		end
-		
-		-- Clean up connection
-		if promptConnection then
-			promptConnection:Disconnect()
-		end
-	end)
-end)
-
--- Update rig type display whenever character respawns (for natural respawns)
-Players.LocalPlayer.CharacterAdded:Connect(function()
-	task.wait(0.5)
-	local humanoid = Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		currentRigMode = humanoid.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
-		rigToggleButton.Text = currentRigMode
+	if not (startInvis and stopInvis and enableFlyFunc and disableFlyFunc) then
+		warn("Emergency button: Invisibility/Fly functions not found. Make sure z.lua is loaded first.")
+		return
 	end
+	
+	-- Get current states
+	local playerUtils = PlayerUtilities or _G.PlayerUtilities
+	local invisState = (playerUtils and playerUtils.Invisibility) or false
+	local flyState = (flyEnabled or _G.flyEnabled) or false
+	
+	-- Determine target state: if both are on, turn both off; otherwise turn both on
+	local targetState = not (invisState and flyState)
+	
+	-- Toggle invisibility
+	if playerUtils then
+		playerUtils.Invisibility = targetState
+	end
+	if targetState then
+		pcall(function() startInvis() end)
+	else
+		pcall(function() stopInvis() end)
+	end
+	
+	-- Toggle fly
+	if flyEnabled ~= nil then
+		flyEnabled = targetState
+	elseif _G.flyEnabled ~= nil then
+		_G.flyEnabled = targetState
+	end
+	if targetState then
+		pcall(function() enableFlyFunc() end)
+	else
+		pcall(function() disableFlyFunc() end)
+	end
+	
+	-- Visual feedback - flash the button
+	local originalColor = emergencyButton.BackgroundColor3
+	TweenService:Create(emergencyButton, TweenInfo.new(0.1), {
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	}):Play()
+	task.wait(0.1)
+	TweenService:Create(emergencyButton, TweenInfo.new(0.1), {
+		BackgroundColor3 = originalColor
+	}):Play()
 end)
 
 -- Long Press / Long Click Detection
