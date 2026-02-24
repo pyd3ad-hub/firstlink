@@ -150,6 +150,7 @@ else
 end
 Frame.Size = UDim2.new(0, 120, 0, 120)
 Frame.Active = true  -- for dragging
+Frame.Selectable = true  -- Required for mobile touch input
 
 local UICorner = Instance.new("UICorner")
 UICorner.Parent = Frame
@@ -400,13 +401,16 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 	end
 end)
 
--- Draggify GUI Functionality for Main Frame
-local dragging, dragStart, startPos
+-- Draggify GUI Functionality for Main Frame (Mobile Compatible)
+local dragging = false
+local dragInput, dragStart, startPos
+
 Frame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
 		dragStart = input.Position
 		startPos = Frame.Position
+		
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
@@ -424,10 +428,21 @@ Frame.InputBegan:Connect(function(input)
 	end
 end)
 
+Frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
 UserInputService.InputChanged:Connect(function(input)
-	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+	if dragging and input == dragInput then
 		local delta = input.Position - dragStart
-		Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		Frame.Position = UDim2.new(
+			startPos.X.Scale, 
+			startPos.X.Offset + delta.X, 
+			startPos.Y.Scale, 
+			startPos.Y.Offset + delta.Y
+		)
 	end
 end)
 
